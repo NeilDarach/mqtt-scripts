@@ -1,0 +1,33 @@
+name: "[builder] Rebuild docker image on push"
+
+on:
+  push:
+      branches-ignore:
+          - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Dockerhub login
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login --username ${DOCKER_USER} --password-stdin
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          buildx-version: latest
+      - name: Build dockerfile (with push)
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+        run: |
+          docker buildx build \
+          --platform=linux/amd64,linux/arm/v7,linux/arm64/v8 \
+          --output "type=image,push=true" \
+          --file ./Dockerfile . \
+          --tag $(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')/mqtt-scripts:${GITHUB_REF##*/}
